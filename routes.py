@@ -1,19 +1,22 @@
 import pymysql
-from db import mysql
-from app import app
+
 # from flaskext.mysql import MySQL
-# from flask_mysqldb import MySQL
+#from flask_mysqldb import MySQL
 from flask import jsonify
 from flask import flash, request
-from werkzeug import generate_password_hash, check_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask import render_template, flash, redirect, url_for, session, logging
 from functools import wraps
+from flask import Blueprint
 
+post = Blueprint('posts', __name__)
 # User Register
 
 
-@app.route('/add_user', methods=['POST'])
+@post.route('/add_user', methods=['POST'])
 def add_user():
+    res.status_code = 200
+    return res
     try:
         _json = request.json
         _name = _json['name']
@@ -54,7 +57,7 @@ def add_user():
 # Users
 
 
-@app.route('/users')
+@post.route('/users')
 def users():
     try:
         conn = mysql.connect()
@@ -73,7 +76,7 @@ def users():
 # Single user
 
 
-@app.route('/user/<int:id>')
+@post.route('/user/<int:id>')
 def user(id):
     try:
         conn = mysql.connect()
@@ -90,7 +93,7 @@ def user(id):
         conn.close()
 
 
-@app.route('/update_user', methods=['POST'])
+@post.route('/update_user', methods=['POST'])
 def update_user():
     try:
         _json = request.json
@@ -130,7 +133,7 @@ def update_user():
         conn.close()
 
 
-@app.route('/delete_user/<int:id>')
+@post.route('/delete_user/<int:id>')
 def delete_user(id):
     try:
         conn = mysql.connect()
@@ -151,7 +154,7 @@ def delete_user(id):
 # Page Not Found
 
 
-@app.errorhandler(404)
+@post.errorhandler(404)
 def not_found(error=None):
     message = {
         'status': 404,
@@ -165,39 +168,39 @@ def not_found(error=None):
 
 # User Login
 
-@app.route('/login', methods=['POST'])
+@post.route('/login', methods=['POST'])
 def login():
     try:
         # if request.method == 'POST':
-            # Get
-            _json = request.json
-            _username = _json['username']
-            _password = _json['password']
+        # Get
+        _json = request.json
+        _username = _json['username']
+        _password = _json['password']
 
-            # create connection,cursor
-            conn = mysql.connect()
-            cur = conn.cursor()
+        # create connection,cursor
+        conn = mysql.connect()
+        cur = conn.cursor()
 
-            # get user by username
-            # username should be equal to the one we pass
-            result = cur.execute(
-                "SELECT * FROM users WHERE username= %s", [_username])
+        # get user by username
+        # username should be equal to the one we pass
+        result = cur.execute(
+            "SELECT * FROM users WHERE username= %s", [_username])
 
-            if result > 0:
-                row = cur.fetchone()
-                pwd = row['password']  # pass mysql config for dict
+        if result > 0:
+            row = cur.fetchone()
+            pwd = row['password']  # pass mysql config for dict
 
-                # compare passwords
-                if check_password_hash(_password, pwd):
-                    # Passed
-                    session['logged_in'] = True
-                    session['username'] = _username
+            # compare passwords
+            if check_password_hash(_password, pwd):
+                # Passed
+                session['logged_in'] = True
+                session['username'] = _username
 
-                    res = jsonify('User Logged in successfully!')
-                    res.status_code = 200
-                    return res
-                else:
-                    return not_found()
+                res = jsonify('User Logged in successfully!')
+                res.status_code = 200
+                return res
+            else:
+                return not_found()
     except Exception as e:
         print(e)
     finally:
@@ -218,14 +221,13 @@ def is_logged_in(f):
                 return not_found
         except Exception as e:
             print(e)
-        finally:
-            return wrap
+    return wrap
 
 
 # Logout
 
 
-@app.route('/logout')
+@post.route('/logout')
 def logout():
     session.clear()
     message = {
@@ -239,35 +241,35 @@ def logout():
 # create feeds
 
 
-@app.route('/feeds')
-@is_logged_in
-def feeds():
-    try:
-        # create cursor
-        conn = mysql.connect()
-        cur = conn.cursor()
+# @post.route('/feeds')
+# @is_logged_in
+# def feeds():
+#     try:
+#         # create cursor
+#         conn = mysql.connect()
+#         cur = conn.cursor()
 
-        # get latest postws
-        result = cur.execute("SELECT * FROM posts ORDER BY id DESC")
+#         # get latest postws
+#         result = cur.execute("SELECT * FROM posts ORDER BY id DESC")
 
-        if result > 0:
-            rows = cur.fetchall()
-            res = jsonify(rows)
-            res.status_code = 200
-            return res
-        else:
-            return not_found
-    except Exception as e:
-        print(e)
-    finally:
-        cur.close()
-        conn.close()
+#         if result > 0:
+#             rows = cur.fetchall()
+#             res = jsonify(rows)
+#             res.status_code = 200
+#             return res
+#         else:
+#             return not_found
+#     except Exception as e:
+#         print(e)
+#     finally:
+#         cur.close()
+#         conn.close()
 
 
 # Add Article
 
 
-@app.route('/add_post', methods=['POST'])
+@post.route('/add_post', methods=['POST'])
 @is_logged_in
 def add_post():
     try:
@@ -291,14 +293,15 @@ def add_post():
         else:
             return not_found
     except Exception as e:
-		print(e)
-	finally:
-		cur.close() 
-		conn.close()
+        print(e)
+    finally:
+        cur.close()
+        conn.close()
 
 # Posts
 
-@app.route('/posts')
+
+@post.route('/posts')
 def posts():
     try:
         conn = mysql.connect()
@@ -315,7 +318,9 @@ def posts():
         cur.close()
 
 # Single post
-@app.route('/post/<int:id>')
+
+
+@post.route('/post/<int:id>')
 def post(id):
     try:
         conn = mysql.connect()
@@ -330,61 +335,59 @@ def post(id):
     finally:
         cur.close()
         conn.close()
-        
+
 
 # Update Posts
 
 
-@app.route('/update_post', methods=['POST'])
-@is_logged_in
-def update_article():
-    try:
+# @post.route('/update_post', methods=['POST'])
+# @is_logged_in
+# def update_article():
+#     try:
 
-        # Create cursor
-        # conn = mysql.connect()
-		# cur = conn.cursor()
+#         # Create cursor
+#         # conn = mysql.connect()
+#         # cur = conn.cursor()
 
-        # # get the post by the id
-        # result = cur.execute("SELECT * FROM posts WHERE id=%s", [id])
+#         # # get the post by the id
+#         # result = cur.execute("SELECT * FROM posts WHERE id=%s", [id])
 
-        # post = cur.fetchone()
+#         # post = cur.fetchone()
 
-        # get post
-        _json = request.json
-        _id=request.json['id']
-        _title = _json['title']
-        _body = _json['body']
+#         # get post
+#         _json = request.json
+#         _id = request.json['id']
+#         _title = _json['title']
+#         _body = _json['body']
 
-    # after comparing then validating sending the post request
-        if _title and _author and _body and _id and request.method == 'POST':
+#     # after comparing then validating sending the post request
+#         if _title and _author and _body and _id and request.method == 'POST':
 
-            # _title = _json['title']
-            # _body = _json['body']
+#             # _title = _json['title']
+#             # _body = _json['body']
 
-
-            # create cursor
-            conn = mysql.connect()
-		    cur = conn.cursor()
-            query="UPDATE posts SET title=%s,body=%s WHERE id=%s"
-            data=(_title,_body,_id)
-            cur.execute(query, data)
-			conn.commit()
-			resp = jsonify('Post updated successfully!')
-			resp.status_code = 200
-			return resp
-		else:
-			return not_found()
-    except Exception as e:
-		print(e)
-	finally:
-		cur.close() 
-		conn.close()
-    
+#             # create cursor
+#             conn = mysql.connect()
+#             cur = conn.cursor()
+#             query = "UPDATE posts SET title=%s,body=%s WHERE id=%s"
+#             data = (_title, _body, _id)
+#             cur.execute(query, data)
+#             conn.commit()
+#             resp = jsonify('Post updated successfully!')
+#             resp.status_code = 200
+#             return resp
+#         else:
+#             return not_found()
+#     except Exception as e:
+#         print(e)
+#     finally:
+#         cur.close()
+#         conn.close()
 
 
 # Delete post
 
-@app.route('/delete_post/<int:id>', methods=['POST'])
+@post.route('/delete_post/<int:id>', methods=['POST'])
 @is_logged_in
 def delete_post(id):
     try:
@@ -400,25 +403,25 @@ def delete_post(id):
         res = jsonify('Post deleted successfully!')
         res.status_code = 200
         return res
-	except Exception as e:
-		print(e)
-	finally:
-		cur.close() 
-		conn.close()
+    except Exception as e:
+        print(e)
+    finally:
+        cur.close()
+        conn.close()
 
 
 # Comments
-@app.route('/add_comment',methods=['GET','POST'])
+@post.route('/add_comment', methods=['GET', 'POST'])
 @is_logged_in
 def add_comment():
     try:
         _json = request.json
         _comment_id = _json['comment_id']
         _post_id = _json['post_id']
-        _author=_json['comment_author']
-        _parent_comment=_json['parent_comment']
-        _child_comment=_json['child_comment']
-        _email=_json['comment_email']
+        _author = _json['comment_author']
+        _parent_comment = _json['parent_comment']
+        _child_comment = _json['child_comment']
+        _email = _json['comment_email']
 
         # create connection,cursor
         conn = mysql.connect()
@@ -428,48 +431,49 @@ def add_comment():
         # username should be equal to the one we pass
         result = cur.execute(
             "SELECT * FROM posts WHERE id= %s", [_post_id])
-        row=[]
+        row = []
         if result > 0:
             row = cur.fetchone()
-            _id=row['id']
+            _id = row['id']
             _title = row['title']  # pass mysql config for dict
             _author = row['author']
-            _body=row['body']
+            _body = row['body']
 
-
-        if _id==_post_id and _child_comment==NULL and _author==session['username'] and _email==session['email']:
-            query=cur.execute("INSERT INTO comments(post_id,comment_author,parent_comment,child_comment,comment_email) VALUES(%s,%s,%s,%s,%s")
-            data=(_post_id,_author,_parent_comment,_child_comment,_email)
+        if _id == _post_id and _child_comment == NULL and _author == session['username'] and _email == session['email']:
+            query = cur.execute(
+                "INSERT INTO comments(post_id,comment_author,parent_comment,child_comment,comment_email) VALUES(%s,%s,%s,%s,%s")
+            data = (_post_id, _author, _parent_comment, _child_comment, _email)
             cur.execute(query, data)
             conn.commit()
             res = jsonify('Comment added successfully!')
             res.status_code = 200
             return res
-        elif _child_comment==1:
-            break
-            res = jsonify('Cannot have more than one replies!')
+        elif _child_comment == 1:
+            res = jsonify('Cannot have more than one reply!')
             res.status_code = 200
             return res
         else:
-                return not_found()
+            return not_found()
     except Exception as e:
-		print(e)
-	finally:
-		cur.close() 
-		conn.close()
+        print(e)
+    finally:
+        cur.close()
+        conn.close()
 
 # Update Comment
-@app.route('/update_comment',methods=['GET','POST'])
+
+
+@post.route('/update_comment', methods=['GET', 'POST'])
 @is_logged_in
 def update_comment():
     try:
         _json = request.json
         _comment_id = _json['comment_id']
         _post_id = _json['post_id']
-        _author=_json['comment_author']
-        _parent_comment=_json['parent_comment']
-        _child_comment=_json['child_comment']
-        _email=_json['comment_email']
+        _author = _json['comment_author']
+        _parent_comment = _json['parent_comment']
+        _child_comment = _json['child_comment']
+        _email = _json['comment_email']
 
         # create connection,cursor
         conn = mysql.connect()
@@ -479,62 +483,62 @@ def update_comment():
         # username should be equal to the one we pass
         result = cur.execute(
             "SELECT * FROM posts WHERE id= %s", [_post_id])
-        row=[]
+        row = []
         if result > 0:
             row = cur.fetchone()
-            _id=row['id']
+            _id = row['id']
             _title = row['title']  # pass mysql config for dict
             _author = row['author']
-            _body=row['body']
+            _body = row['body']
 
+        if _child_comment is not NULL and _author == session['username'] and _email == session['email']:
 
-        if _child_comment is not NULL and _author==session['username'] and _email==session['email']:
+            query = cur.execute(
+                "UPDATE comments SET(child_comment=%s) VALUES WHERE comment_id=%s")
 
-            query=cur.execute("UPDATE comments SET(child_comment=%s) VALUES WHERE comment_id=%s)
-
-            data=(_child_comment,_comment_id)
+            data = (_child_comment, _comment_id)
             cur.execute(query, data)
             conn.commit()
             res = jsonify('Comment updated successfully!')
             res.status_code = 200
             return res
 
+        elif _parent_comment is not NULL and _author == session['username'] and _email == session['email']:
 
-        elif _parent_comment is not NULL and _author==session['username'] and _email==session['email']:
+            query = cur.execute(
+                "UPDATE comments SET(parent_comment= %s) VALUES WHERE comment_id= %s")
 
-            query=cur.execute("UPDATE comments SET(parent_comment=%s) VALUES WHERE comment_id=%s)
-
-            data=(_parent_comment,_comment_id)
+            data = (_parent_comment, _comment_id)
             cur.execute(query, data)
             conn.commit()
             res = jsonify('Comment updated successfully!')
             res.status_code = 200
             return res
-            
+
             res = jsonify('Cannot have more than one replies!')
             res.status_code = 200
             return res
 
         else:
-                return not_found()
+            return not_found()
     except Exception as e:
-		print(e)
-	finally:
-		cur.close() 
-		conn.close()
+        print(e)
+    finally:
+        cur.close()
+        conn.close()
 
 # Delete comment
 
-@app.route('/delete_comment/<int:id>')
+
+@post.route('/delete_comment/<int:id>')
 @is_logged_in
 def delete_comment(id):
     try:
-        if _author==session['username'] and _email==session['email']:
+        if _author == session['username'] and _email == session['email']:
             # Create Cursor
             conn = mysql.connect()
             cur = conn.cursor()
 
-        
             # Execute
             cur.execute("DELETE FROM comments WHERE id= %s", (id,))
 
@@ -543,14 +547,13 @@ def delete_comment(id):
             res = jsonify('Comment deleted successfully!')
             res.status_code = 200
             return res
-	except Exception as e:
-		print(e)
-	finally:
-		cur.close() 
-		conn.close()
-     
+    except Exception as e:
+        print(e)
+    finally:
+        cur.close()
+        conn.close()
 
 
 if __name__ == '__main__':
-    app.secret_key = 'secret123'
-    app.run(debug=True)
+    post.secret_key = 'secret123'
+    post.run(debug=True)
